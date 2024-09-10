@@ -1,0 +1,13 @@
+{
+    "name": "factorio_after_dark",
+    "version": "0.1.0",
+    "title": "Factorio After Dark",
+    "author": "Reithan",
+    "factorio_version": "1.1",
+    "dependencies": [
+      "base >= 1.1",
+      "?SearchlightAssault >= 2.2.19",
+      "?DeadlockLargerLamp >= 1.5.1"
+    ],
+    "description": "It's harder to hit what you can't see."
+  }
