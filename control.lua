@@ -73,6 +73,7 @@ function modifyDamage(event)
             return
         end
         
+        -- TODO: find nightvision if player is in vehicle
         -- check nightvision
         if (event.cause.grid) then
             local nvg = event.cause.grid.find("night-vision-equipment")
@@ -158,10 +159,8 @@ function modifyDamage(event)
                 elseif bearing.x < -0.4 then
                     cardinal = cardinal .. "west"
                 end
-                game.print("Bearing " .. "(" .. bearing.x .. "," .. bearing.y .. ")")
-                game.print("Cardinal " .. cardinal)
+                -- TODO: Tank always points west??
                 if defines.direction[cardinal] == player.walking_state.direction then
-                    game.print("FLASHLIGHT!")
                     lampIntensity = lampIntensityAtDistance("flashlight", dist(player.position, event.entity.position))
                     darkness = darkness - lampIntensity
                 end
