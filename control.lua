@@ -27,6 +27,37 @@ lampCurves["searchlight-assault-turtle"] = {1.0, 2.0, 5.0}
 lampCurves["default"] = lampCurves["small-lamp"]
 lampCurves["touch"] = {2.0, 10.0, 2.0}
 
+function bearing_to_direction(bearing)
+    local cardinal = ""
+    if bearing.y > 0.4 then
+        cardinal = cardinal .. "south"
+    elseif bearing.y < -0.4 then
+        cardinal = cardinal .. "north"
+    end
+    if bearing.x > 0.4 then
+        cardinal = cardinal .. "east"
+    elseif bearing.x < -0.4 then
+        cardinal = cardinal .. "west"
+    end
+    return defines.direction[cardinal]
+end
+
+function orientation_to_direction(orientation)
+    local sixteenths = orientation * 16.0
+    local cardinal = ""
+    if sixteenths > 13 or sixteenths < 3 then
+        cardinal = cardinal .. "north"
+    elseif sixteenths > 5 and sixteenths < 11 then
+        cardinal = cardinal .. "south"
+    end
+    if sixteenths > 1 and sixteenths < 7 then
+        cardinal = cardinal .. "east"
+    elseif sixteenths > 9 and sixteenths < 15 then
+        cardinal = cardinal .. "west"
+    end
+    return defines.direction[cardinal]
+end
+
 function lampIntensityAtDistance(lamp, distance)
     if not lampCurves[lamp] then
         lamp = "default"
@@ -143,24 +174,20 @@ function modifyDamage(event)
         darkness = darkness - lampIntensity
     end
 
-    -- Check all flashlights!
+    -- Check all flashlights & player headlights
     for _, player in pairs(game.players) do
         if player.surface == event.entity.surface and player.is_flashlight_enabled() then
             if dist(player.position, event.entity.position) <= lampCurves["flashlight"][3] then
                 cardinal = ""
                 bearing = direction(player.position, event.entity.position)
-                if bearing.y > 0.4 then
-                    cardinal = cardinal .. "south"
-                elseif bearing.y < -0.4 then
-                    cardinal = cardinal .. "north"
+                local firing_direction = bearing_to_direction(bearing)
+                local is_facing = false
+                if player.driving then
+                    is_facing = orientation_to_direction(player.vehicle.orientation) == firing_direction
+                else
+                    is_facing = player.walking_state.direction == firing_direction
                 end
-                if bearing.x > 0.4 then
-                    cardinal = cardinal .. "east"
-                elseif bearing.x < -0.4 then
-                    cardinal = cardinal .. "west"
-                end
-                -- TODO: Tank always points west??
-                if defines.direction[cardinal] == player.walking_state.direction then
+                if is_facing then
                     lampIntensity = lampIntensityAtDistance("flashlight", dist(player.position, event.entity.position))
                     darkness = darkness - lampIntensity
                 end
