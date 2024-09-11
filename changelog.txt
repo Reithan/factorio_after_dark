@@ -3,6 +3,7 @@ Version: 0.1.1
 Date: 11.09.2024
   Info:
     - Removed leftover debug prints
+    - Fixed direction finding for mounted player headlights
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.0
 Date: 10.09.2024
