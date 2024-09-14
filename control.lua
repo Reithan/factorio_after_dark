@@ -161,10 +161,12 @@ function modifyDamage(event)
         end
     end
 
-    -- adjust darkness based inaccuracy if target is within arm's reach of target to help realism
-    -- i.e: it's hard to miss if the barrel is pressed to their chest
-    lampIntensity = lampIntensityAtDistance("touch", dist(event.cause.position, event.entity.position))
-    darkness = darkness - lampIntensity
+    if event.cause then
+        -- adjust darkness based inaccuracy if target is within arm's reach of target to help realism
+        -- i.e: it's hard to miss if the barrel is pressed to their chest
+        lampIntensity = lampIntensityAtDistance("touch", dist(event.cause.position, event.entity.position))
+        darkness = darkness - lampIntensity
+    end
 
     -- nearby fire should cast SOME light, but it's very dim in game.
     -- let's assume a general uncontrolled plume of flame should at least fully illuminate what it's on, but not cast much useable light very far
