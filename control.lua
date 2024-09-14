@@ -12,6 +12,101 @@ indiscriminate = {
     impact = true
 }
 
+function find_light(entity, depth_limit)
+    local lights = {}
+    if depth_limit == nil then
+        depth_limit = 3
+    end
+    if depth_limit <= 0 then
+        return nil
+    end
+
+    if entity.is_player and entity.is_player() then
+        return parse_player_lights(entity)
+    elseif entity.prototype.braking_power or entity.prototype.braking_power.braking_force  ~= nil then
+        local headlight = parse_vehicle_lights(entity)
+        if headlight then
+            table.insert(lights, headlight)
+        end
+    end
+
+    local children ={}
+    for key, value in pairs(entity) do
+        if key == "light" then
+            local new_light = parse_light(value)
+            if new_light then
+                table.insert(lights, new_light)
+            end
+        else
+            table.insert(children, value)
+        end
+    end
+    for _, child in pairs(children) do
+        local child_lights = find_light(child, depth_limit - 1)
+        for _, child_light in ipairs(child_lights) do
+            table.insert(lights, child_light)
+        end
+    end
+
+    return lights
+end
+
+function parse_light(entity)
+    local new_light = {}
+    -- oriented (flashlight/headlight)
+    new_light.flashlight = (entity.type == "oriented")
+    -- size
+    new_light.radius = entity.size -- radius of light cast in tiles
+    -- intensity
+    new_light.intensity = entity.intensity -- brightness of light [0..1] 0 = no light, 1 = full daylight
+end
+
+function parse_vehicle_lights(entity)
+    local lights = {}
+    -- get headlights
+    -- who's the gunner?
+    if entity.driver_is_gunner() then
+        -- get driver
+        local driver = entity.get_driver()
+        if driver then
+            local driver_lights = parse_player_lights(driver)
+            -- if driver NVGS then
+                lights.nvg = true
+            -- end
+        end
+    else
+        -- get passenger
+        local gunner = entity.get_passenger()
+        if gunner then
+            local gunner_lights = parse_player_lights(gunner)
+            -- if driver NVGS then
+                lights.nvg = true
+            -- end
+        end
+    end
+    -- get NVGs? (grid-modded vehicles)
+    -- if grid then
+    -- if nvg then
+    lights.nvg = true
+    -- end end
+end
+
+function parse_player_lights(entity)
+    local lights = {}
+    -- flashlight
+    if entity.is_flashlight_enabled() then
+        if entity.light then
+            lights[1] = parse_light(entity.light)
+        end
+    end
+    -- NVGs?
+    -- if nvg equipped then
+    lights.nvg = true
+    -- end
+    
+    return lights
+end
+
 -- first number is # of lamps to reach 'full brightness' directly next to lamp
 -- second number is # of lamps to reach FB at max lamp range
 -- third number is lamp max range
