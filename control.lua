@@ -1,5 +1,5 @@
 -- exponent for determining brightness
-local brightnessCurve = 1.6
+local light_falloff_exponent = 1.6
 
 indiscriminate = {
     physical = false,
@@ -34,8 +34,11 @@ function find_light(entity, depth_limit)
     for key, value in pairs(entity) do
         if key == "light" then
             local new_light = parse_light(value)
+            -- try to parse this as a light, otherwise use as a child
             if new_light then
                 table.insert(lights, new_light)
+            else
+                table.insert(children, value)
             end
         else
             table.insert(children, value)
@@ -52,9 +55,14 @@ function find_light(entity, depth_limit)
 end
 
 function parse_light(entity)
+    -- validate light, some mods may use key 'light' for other entities
+    if not entity.type or not entity.size or not entity.intensity then
+        return nil
+    end
+
     local new_light = {}
     -- oriented (flashlight/headlight)
-    new_light.flashlight = (entity.type == "oriented")
+    new_light.oriented = (entity.type == "oriented")
     -- size
     new_light.radius = entity.size -- radius of light cast in tiles
     -- intensity
@@ -85,10 +93,14 @@ function parse_vehicle_lights(entity)
         end
     end
     -- get NVGs? (grid-modded vehicles)
-    -- if grid then
-    -- if nvg then
-    lights.nvg = true
-    -- end end
+    if entity.grid then
+        local nvg = entity.grid.find("night-vision-equipment")
+        if nvg and nvg.energy > 0 then
+            lights.nvg = true
+        end
+    end
+
+    return lights
 end
 
 function parse_player_lights(entity)
@@ -100,9 +112,12 @@ function parse_player_lights(entity)
         end
     end
     -- NVGs?
-    -- if nvg equipped then
-    lights.nvg = true
-    -- end
+    if entity.grid then
+        local nvg = entity.grid.find("night-vision-equipment")
+        if nvg and nvg.energy > 0 then
+            lights.nvg = true
+        end
+    end
     
     return lights
 end
@@ -160,10 +175,18 @@ function lampIntensityAtDistance(lamp, distance)
     if distance >= lampCurves[lamp][3] then
         return 0.0
     end
-    lerpAmount = math.min(1, math.max(0, ((distance-1)/lampCurves[lamp][3])^brightnessCurve))
+    lerpAmount = math.min(1, math.max(0, (distance/lampCurves[lamp][3])^light_falloff_exponent))
     denominator = lampCurves[lamp][1] * (1 - lerpAmount) + lampCurves[lamp][2] * lerpAmount
     intensity = 1/denominator
     return intensity
+end
+
+function lightIntensityAtDistance(light, distance)
+    if distance >= light.radius then
+        return 0.0
+    end
+    falloff = math.min(1, math.max(0, (distance/light.radius)^light_falloff_exponent))
+    return light.intensity * (1 - falloff)
 end
 
 function dist(a, b)
@@ -212,7 +235,7 @@ function modifyDamage(event)
     -- get current surface darkness
     local darkness = event.entity.surface.darkness
 
-    -- find nearby lights!
+    -- find nearby lights
     nearby = game.surfaces[event.entity.surface_index].find_entities_filtered{position = event.entity.position, radius = 30, limit = 20, type = "lamp"}
     for _,near in ipairs(nearby) do
         control = near.get_control_behavior()
@@ -229,7 +252,7 @@ function modifyDamage(event)
         end
     end
 
-    -- support mods!
+    -- support mods
     mods = script.active_mods
     -- support burner lamps from Larger Lamps
     if mods["DeadlockLargerLamp"] then
@@ -295,12 +318,23 @@ function modifyDamage(event)
     -- TODO: ignoring non-player flashlights/headlight for now, add this in?
 
     darkness = math.max(0, darkness) -- can be 0 min darkness
-    inaccuracy = math.min(1,math.max(0, darkness^brightnessCurve - 0.1))
+    inaccuracy = math.min(1,math.max(0, darkness^light_falloff_exponent - 0.1))
 
     -- simulate a miss and remove the damage done if RNG doesn't beat inaccuracy
     if math.random() <= inaccuracy then
+        -- display miss text
+        for _, player in pairs(game.players) do
+            if player.mod_settings["fad-display-misses"].value then
+                -- if global.fad_miss_text[entity.unit_number].last_miss <= use something like this to rate limit if needed
+                player.create_local_flying_text{text="miss", position="entity.position", color={0.75,0.1,0.1,0.75}, speed=1.0}
+            end
+        end
         event.entity.health = event.entity.health + event.final_damage_amount
     end
 end
 
+-- use for rate limit if needed
+-- script.on_init(function(event)
+--     global.fad_miss_text = {}
+-- end)
 script.on_event(defines.events.on_entity_damaged, modifyDamage)
