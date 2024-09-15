@@ -67,9 +67,18 @@ function lampIntensityAtDistance(lamp, distance)
     if distance >= lampCurves[lamp][3] then
         return 0.0
     end
-    lerpAmount = math.min(1, math.max(0, ((distance-1)/lampCurves[lamp][3])^brightnessCurve))
+    lerpAmount = math.min(1, math.max(0, (distance/lampCurves[lamp][3])^brightnessCurve))
     denominator = lampCurves[lamp][1] * (1 - lerpAmount) + lampCurves[lamp][2] * lerpAmount
     intensity = 1/denominator
+    return intensity
+end
+
+function lightIntensityAtDistance(light, distance)
+    if distance >= light.end_scale then
+        return 0.0
+    end
+    local scale = math.min(1, math.max(0, (distance/light.end_scale)^brightnessCurve))
+    intensity = light.start_scale * (1 - scale)
     return intensity
 end
 
@@ -128,10 +137,14 @@ function modifyDamage(event)
         elseif control and control.disabled then
             -- do nothing
         else
-            -- subtract 1 from distance as all lights are 1x1 - 2x2 in size (except turtle) and will be at least 0.7 to the corner
-            -- this means the edge of the light should be between 0.5-1.4 away from it's center, so 1 is decent compromise
-            distance = dist(near.position, event.entity.position) - 1
-            lampIntensity = lampIntensityAtDistance(near.name, distance)
+            local lampIntensity = 0.0
+            distance = dist(near.position, event.entity.position)
+            light_settings = game.trivial_smoke_prototypes["fad-lamp-"..near.name]
+            if light_settings then
+                lampIntensity = lightIntensityAtDistance(light_settings, distance)
+            else
+                lampIntensity = lampIntensityAtDistance(near.name, distance)
+            end
             darkness = darkness - lampIntensity
         end
     end
@@ -143,10 +156,14 @@ function modifyDamage(event)
         nearby = game.surfaces[event.entity.surface_index].find_entities_filtered{position = event.entity.position, radius = lampCurves["deadlock-copper-lamp"][3], limit = 20, name = "deadlock-copper-lamp"}
         for _,near in ipairs(nearby) do
             if near.burner and near.burner.remaining_burning_fuel > 0 then
-                -- subtract 1 from distance as all lights are 1x1 - 2x2 in size (except turtle) and will be at least 0.7 to the corner
-                -- this means the edge of the light should be between 0.5-1.4 away from it's center, so 1 is decent compromise
-                distance = dist(near.position, event.entity.position) - 1
-                lampIntensity = lampIntensityAtDistance(near.name, distance)
+                local lampIntensity = 0.0
+                distance = dist(near.position, event.entity.position)
+                light_settings = game.trivial_smoke_prototypes["fad-lamp-"..near.name]
+                if light_settings then
+                    lampIntensity = lightIntensityAtDistance(light_settings, distance)
+                else
+                    lampIntensity = lampIntensityAtDistance(near.name, distance)
+                end
                 darkness = darkness - lampIntensity
             end
         end
@@ -157,7 +174,14 @@ function modifyDamage(event)
         for _,near in ipairs(nearby) do
             -- determine if turtle/searchlight is active, SLA already sets turtle active based on power and state
             if near.active then
-                lampIntensity = lampIntensityAtDistance(near.name, dist(near.position, event.entity.position))
+                local lampIntensity = 0.0
+                distance = dist(near.position, event.entity.position)
+                light_settings = game.trivial_smoke_prototypes["fad-lamp-sla-spotlight"]
+                if light_settings then
+                    lampIntensity = lightIntensityAtDistance(light_settings, distance)
+                else
+                    lampIntensity = lampIntensityAtDistance(near.name, distance)
+                end
                 darkness = darkness - lampIntensity
             end
         end
@@ -217,7 +241,7 @@ function modifyDamage(event)
                 end
                 local last_tick = player_misses[event.entity]
                 if last_tick == nil or last_tick < event.tick - 15 then -- 4 misses prints on each target per second, max (3 on screen at once)
-                    player_misses[event.entity] = event.tick
+                    player_misses[event.entity] = event.tick -- might need to use unit num here if this causes desync (test), but some entities don't have unit-num
                     player.create_local_flying_text{text = "miss", position = event.entity.position, color = {0.75,0.1,0.1,0.75}, speed = 2.0, time_to_live = 45}
                 end
             end

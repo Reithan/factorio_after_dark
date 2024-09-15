@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.0
+Date: 15.09.2024
+  Features:
+    - Caching all light data in data-final and using this when possible during runtime
+---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 15.09.2024
   Minor Features:
