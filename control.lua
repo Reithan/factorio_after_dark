@@ -1,5 +1,7 @@
 -- exponent for determining brightness
 local brightnessCurve = 1.6
+-- misses[player][target] = last tick we printed miss
+local misses = {}
 
 indiscriminate = {
     physical = false,
@@ -204,8 +206,39 @@ function modifyDamage(event)
 
     -- simulate a miss and remove the damage done if RNG doesn't beat inaccuracy
     if math.random() <= inaccuracy then
+        -- display miss text
+        for _, player in pairs(game.players) do
+            if player.mod_settings["fad-display-misses"].value then
+                -- misses[player][target] = last tick we printed miss
+                local player_misses = misses[player.index]
+                if player_misses == nil then
+                    misses[player.index] = {}
+                    player_misses = misses[player.index]
+                end
+                local last_tick = player_misses[event.entity]
+                if last_tick == nil or last_tick < event.tick - 15 then -- 4 misses prints on each target per second, max (3 on screen at once)
+                    player_misses[event.entity] = event.tick
+                    player.create_local_flying_text{text = "miss", position = event.entity.position, color = {0.75,0.1,0.1,0.75}, speed = 2.0, time_to_live = 45}
+                end
+            end
+        end
         event.entity.health = event.entity.health + event.final_damage_amount
     end
 end
 
 script.on_event(defines.events.on_entity_damaged, modifyDamage)
+
+-- cull miss table on tick to limit bloat
+script.on_event(defines.events.on_tick, function(event)
+    local lowest_tick = event.tick - 45
+    for pidx, player_misses in pairs(misses) do
+        for tidx, target in pairs(player_misses) do
+            if target < lowest_tick then
+                table.remove(player_misses, tidx)
+            end
+        end
+        if #player_misses == 0 then
+            table.remove(misses, pidx)
+        end
+    end
+end)
