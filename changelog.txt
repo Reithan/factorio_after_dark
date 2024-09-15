@@ -1,7 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.0
+Date: 15.09.2024
+  Minor Features:
+    - Added 'miss' flying text on enemies when attacks miss
+    - Added player setting to enable/disable miss text
+---------------------------------------------------------------------------------------------------
 Version: 0.1.2
 Date: 14.09.2024
-  Info:
+  Bugfixes:
     - Fix crash on damage without causing entity
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
